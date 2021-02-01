@@ -145,7 +145,7 @@ NOTES:
  */
 
 int bitXor(int x, int y) {
-    return 2;
+    return ~(~(~x & y) & ~(x & ~y));
 }
 
 /* 
@@ -156,7 +156,7 @@ int bitXor(int x, int y) {
  */
 
 int tmin(void) {
-    return 2;
+    return 0x1 << 31;
 }
 
 //2
