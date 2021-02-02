@@ -145,6 +145,7 @@ NOTES:
  */
 
 int bitXor(int x, int y) {
+    /* Using De Morgan's Laws to avoid the use of |. */
     return ~(~(~x & y) & ~(x & ~y));
 }
 
@@ -156,6 +157,7 @@ int bitXor(int x, int y) {
  */
 
 int tmin(void) {
+    /* Tmin = 0x80000000. */
     return 0x1 << 31;
 }
 
@@ -170,7 +172,13 @@ int tmin(void) {
  */
 
 int isTmax(int x) {
-    return 2;
+    /* Tmax = 0x7fffffff.
+       Note that Tmax is the only 2 number that x ^ (x + 1) = 0xffffffff
+       (the other one is 0xffffffff). */
+    int comp, comp_0;
+    comp = ~(x ^ (x + 1));
+    comp_0 = !~(x ^ 0x0);
+    return !(comp | comp_0);
 }
 
 /* 
@@ -183,7 +191,12 @@ int isTmax(int x) {
  */
 
 int allOddBits(int x) {
-    return 2;
+    /* First construct a pattern whose all even-numbered bits are set to 1.
+       Then x | pattern = 0xffffffff, since all odd-numbered bits of x are set to 1. */
+    int pattern;
+    pattern = 0x55 + (0x55 << 8);
+    pattern = pattern + (pattern << 16);
+    return !~(x | pattern);
 }
 
 /* 
@@ -195,7 +208,8 @@ int allOddBits(int x) {
  */
 
 int negate(int x) {
-    return 2;
+    /* Using the fact that -x = ~x + 1. */
+    return ~x + 1;
 }
 
 //3
