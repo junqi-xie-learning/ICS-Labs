@@ -285,7 +285,11 @@ int isLessOrEqual(int x, int y) {
  */
 
 int logicalNeg(int x) {
-    return 2;
+    /* First convert the x into 0x00000000 or 0xFFFFFFFF, depending on its logic value.
+       Then add 1 to get the negation. */
+    int sign;
+    sign = (x | (~x + 1)) >> 31;
+    return sign + 1;
 }
 
 /* howManyBits - return the minimum number of bits required to represent x in
@@ -302,7 +306,30 @@ int logicalNeg(int x) {
  */
 
 int howManyBits(int x) {
-    return 0;
+    /* Using the methology of binary search to find the first 1 after normalization.
+       First test the first-half of x. If it's not 0x0, the second-half must be required.
+       Then right shift x by a half to test the first-half more carefully. */
+    int bits, count;
+    bits = 1;
+    x ^= x >> 31;
+
+    count = (!!(x >> 16)) << 4;
+    bits += count;
+    x >>= count;
+    count = (!!(x >> 8)) << 3;
+    bits += count;
+    x >>= count;
+    count = (!!(x >> 4)) << 2;
+    bits += count;
+    x >>= count;
+    count = (!!(x >> 2)) << 1;
+    bits += count;
+    x >>= count;
+    count = !!(x >> 1);
+    bits += count;
+    x >>= count;
+    bits += !!x;
+    return bits;
 }
 
 //float
