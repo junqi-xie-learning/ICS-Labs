@@ -172,9 +172,9 @@ int tmin(void) {
  */
 
 int isTmax(int x) {
-    /* Tmax = 0x7fffffff.
-       Note that Tmax is the only 2 number that x ^ (x + 1) = 0xffffffff
-       (the other one is 0xffffffff). */
+    /* Tmax = 0x7FFFFFFFF.
+       Note that Tmax is the only 2 number that x ^ (x + 1) = 0XFFFFFFFF
+       (the other one is 0xFFFFFFFF). */
     int comp, comp_0;
     comp = ~(x ^ (x + 1));
     comp_0 = !~(x ^ 0x0);
@@ -192,7 +192,7 @@ int isTmax(int x) {
 
 int allOddBits(int x) {
     /* First construct a pattern whose all even-numbered bits are set to 1.
-       Then x | pattern = 0xffffffff, since all odd-numbered bits of x are set to 1. */
+       Then x | pattern = 0xFFFFFFFF, since all odd-numbered bits of x are set to 1. */
     int pattern;
     pattern = 0x55 + (0x55 << 8);
     pattern = pattern + (pattern << 16);
@@ -225,7 +225,14 @@ int negate(int x) {
  */
 
 int isAsciiDigit(int x) {
-    return 2;
+    /* Using the fact that x - 0x30 >= 0 and x - 0x3A < 0.
+       Note that overflow is fine, since the conditions aren't satisfied. */
+    int negate_0, negate_9, larger_equal_0, smaller_equal_9;
+    negate_0 = ~0x30 + 1;
+    negate_9 = ~0x3A + 1;
+    larger_equal_0 = (x + negate_0) >> 31;
+    smaller_equal_9 = ~((x + negate_9) >> 31);
+    return !(larger_equal_0 | smaller_equal_9);
 }
 
 /* 
@@ -237,7 +244,11 @@ int isAsciiDigit(int x) {
  */
 
 int conditional(int x, int y, int z) {
-    return 2;
+    /* First convert the condition into 0x00000000 or 0xFFFFFFFF to create a mask.
+       Then use the mask to select the corresponding data. */
+    int condition;
+    condition = ~(!x) + 1;
+    return (~condition & y) | (condition & z);
 }
 
 /* 
@@ -249,7 +260,17 @@ int conditional(int x, int y, int z) {
  */
 
 int isLessOrEqual(int x, int y) {
-    return 2;
+    /* First check the signs of x and y.
+       If they're both positive and negative, simply check y - x >= 0.
+       Else, check y is positive. */
+    int sign_x, sign_y, sign_comp, negate_x, comp;
+    sign_x = x >> 31;
+    sign_y = y >> 31;
+    sign_comp = sign_x ^ sign_y;
+
+    negate_x = ~x + 1;
+    comp = (y + negate_x) >> 31;
+    return !((sign_comp | comp) & (~sign_comp | sign_y));
 }
 
 //4
