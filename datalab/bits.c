@@ -347,7 +347,23 @@ int howManyBits(int x) {
  */
 
 unsigned floatScale2(unsigned uf) {
-    return 2;
+    /* Depending on the exp part of uf, there're 4 cases:
+       1. exp = 0xFF, uf is infinity or NaN. The original number is the result.
+       2. exp = 0xFE, it overflows into infinity.
+       3. exp = 0x00, the denormalized case. Left shift the frac part by 1.
+       4. exp is other numbers, the normalized case. Increase the exp part by 1. */
+    unsigned exp, frac;
+    exp = (uf & 0x7F800000) >> 23;
+    frac = uf & 0x007FFFFF;
+    
+    if (!(exp ^ 0xFF))
+        return uf;
+    else if (!(exp ^ 0xFE))
+        return (uf & 0x80000000) | 0x7F800000;
+    else if (!(exp ^ 0x0))
+        return (uf & 0xFF800000) | (frac << 1);
+    else
+        return (uf & 0x807FFFFF) | ((exp + 1) << 23);
 }
 
 /* 
@@ -364,7 +380,29 @@ unsigned floatScale2(unsigned uf) {
  */
 
 int floatFloat2Int(unsigned uf) {
-    return 2;
+    /* Depending on the original exp part of uf, there're 3 cases:
+       1. original < 0, the result is 0x0u.
+       2. original >= 24, it overflows and the result is 0x80000000u.
+       3. 0 <= original < 24, the result is obtained by right shifting
+          (23 - original) bits. */
+    unsigned sign, exp, original, frac;
+    sign = uf >> 31;
+    exp = (uf & 0x7F800000) >> 23;
+    original = exp + 0xFFFFFF81;
+    frac = uf & 0x007FFFFF;
+
+    if (original >> 31)
+        return 0x0u;
+    else if ((23 - original) >> 31)
+        return 0x80000000u;
+    else {
+        unsigned result;
+        result = (frac + 0x00800000) >> (23 - original);
+        if (sign)
+            return ~result + 1;
+        else
+            return result;
+    }
 }
 
 /* 
@@ -382,5 +420,18 @@ int floatFloat2Int(unsigned uf) {
  */
 
 unsigned floatPower2(int x) {
-    return 2;
+    /* Depending on the biased x, there're 3 cases:
+       1. biased < 0, the result is 0x0u.
+       2. biased >= 0xFF, it overflows and the result is 0x7F800000u.
+       3. 0 <= biased < 0xFF, the result is obtained by left shifting
+          23 bits. */
+    unsigned exp;
+    exp = x + 0x7F;
+
+    if (exp >> 31)
+        return 0x0u;
+    else if ((0xFE - exp) >> 31)
+        return 0x7F800000u;
+    else
+        return exp << 23;
 }
