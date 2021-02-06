@@ -18,7 +18,7 @@ If you found any mistakes in the solutions, please create an issue or contact me
 ### Sample Labs from CS:APP
 
 * [x] Data Lab
-* [ ] Bomb Lab
+* [x] Bomb Lab
 * [ ] Attack Lab
 * [ ] Architecture Lab
 * [ ] Cache Lab
