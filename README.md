@@ -19,7 +19,7 @@ If you found any mistakes in the solutions, please create an issue or contact me
 
 * [x] Data Lab
 * [x] Bomb Lab
-* [ ] Attack Lab
+* [x] Attack Lab
 * [ ] Architecture Lab
 * [ ] Cache Lab
 * [ ] Malloc Lab
