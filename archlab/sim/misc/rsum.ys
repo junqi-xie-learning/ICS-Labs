@@ -25,14 +25,16 @@ main:
 # ls in %rdi
 rsum_list:
 	andq	%rdi, %rdi		# Set CC
-	jne		leave			# Stop when 0
+	jne		recurse			# Stop when 0
+	irmovq	$0, %rax		# return 0
+	ret
 recurse:
 	mrmovq	(%rdi), %r10	# Get ls->val
 	mrmovq	8(%rdi), %rdi	# Get ls->next
-	call	rsum_list
+	pushq	%r10			# Save register
+	call	rsum_list		# rsum_list(ls->next)
+	popq	%r10			# Restore register
 	addq	%r10, %rax		# Add to sum
-leave:
-	irmovq	$0, %rax		# return 0
 	ret
 
 # Stack starts here and grows to lower addresses
