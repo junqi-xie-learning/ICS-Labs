@@ -20,7 +20,7 @@ If you found any mistakes in the solutions, please create an issue or contact me
 * [x] Data Lab
 * [x] Bomb Lab
 * [x] Attack Lab
-* [ ] Architecture Lab
+* [x] Architecture Lab
 * [ ] Cache Lab
 * [ ] Malloc Lab
 
