@@ -1,0 +1,84 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# Include your name and ID here.
+#
+# Performance History:
+# * baseline code: 15.18
+# * iaddq instruction implemented: 12.70
+# * remove load/use data hazard: 11.70
+# * apply 2 loop unrolling: 9.71
+# * apply 2x2 loop unrolling: 8.78
+#
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+	# Loop header
+	xorq %rax, %rax		# count = 0;
+	iaddq $-3, %rdx		# len -= 3
+	andq %rdx, %rdx		# len <= 0?
+	jle Done4			# if so, goto Done4:
+
+Loop4:
+	mrmovq (%rdi), %r10	# read val0 from src
+	mrmovq $8(%rdi), %r11	# read val1 from src + 1
+	rmmovq %r10, (%rsi)	# store val0 to dst
+	rmmovq %r11, $8(%rsi)	# store val1 to dst + 1
+	andq %r10, %r10		# val0 <= 0?
+	jle Npos0			# if so, goto Npos0:
+	iaddq $1, %rax		# count++
+Npos0:
+	andq %r11, %r11		# val1 <= 0?
+	jle Npos1			# if so, goto Npos1:
+	iaddq $1, %rax		# count++
+Npos1:
+	mrmovq $16(%rdi), %r10	# read val0 from src + 2
+	mrmovq $24(%rdi), %r11	# read val1 from src + 3
+	rmmovq %r10, $16(%rsi)	# store val0 to dst + 2
+	rmmovq %r11, $24(%rsi)	# store val1 to dst + 3
+	andq %r10, %r10		# val0 <= 0?
+	jle Npos2			# if so, goto Npos2:
+	iaddq $1, %rax		# count++
+Npos2:
+	andq %r11, %r11		# val1 <= 0?
+	jle Npos3			# if so, goto Npos3:
+	iaddq $1, %rax		# count++
+Npos3:
+	iaddq $-4, %rdx		# len -= 4
+	iaddq $32, %rdi		# src += 4
+	iaddq $32, %rsi		# dst += 4
+	andq %rdx, %rdx		# len > 0?
+	jg Loop4			# if so, goto Loop4:
+
+Done4:
+	iaddq $3, %rdx		# len += 3
+	andq %rdx, %rdx		# len <= 0?
+	jle Done			# if so, goto Done:
+Loop:
+	mrmovq (%rdi), %r10	# read val from src
+	iaddq $-1, %rdx		# len--
+	rmmovq %r10, (%rsi)	# store val to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos			# if so, goto Npos:
+	iaddq $1, %rax		# count++
+Npos:
+	iaddq $8, %rdi		# src++
+	iaddq $8, %rsi		# dst++
+	andq %rdx, %rdx		# len > 0?
+	jg Loop				# if so, goto Loop:
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */
