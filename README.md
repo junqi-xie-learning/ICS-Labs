@@ -21,7 +21,7 @@ If you found any mistakes in the solutions, please create an issue or contact me
 * [x] Bomb Lab
 * [x] Attack Lab
 * [x] Architecture Lab
-* [ ] Cache Lab
+* [x] Cache Lab
 * [ ] Malloc Lab
 
 ## License
