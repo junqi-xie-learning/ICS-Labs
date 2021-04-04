@@ -6,11 +6,16 @@
  *
  * A transpose function is evaluated by counting the number of misses
  * on a 1KB direct mapped cache with a block size of 32 bytes.
- */ 
+ */
 #include <stdio.h>
 #include "cachelab.h"
 
 int is_transpose(int M, int N, int A[N][M], int B[M][N]);
+
+void trans(int M, int N, int A[N][M], int B[M][N]);
+void trans_32_32(int A[32][32], int B[32][32]);
+void trans_64_64(int A[64][64], int B[64][64]);
+void trans_61_67(int A[67][61], int B[61][67]);
 
 /* 
  * transpose_submit - This is the solution transpose function that you
@@ -22,12 +27,20 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
+    if (M == 32 && N == 32)
+        trans_32_32(A, B);
+    else if (M == 64 && N == 64)
+        trans_64_64(A, B);
+    else if (M == 61 && N == 67)
+        trans_61_67(A, B);
+    else
+        trans(M, N, A, B);
 }
 
 /* 
  * You can define additional transpose functions below. We've defined
  * a simple one below to help you get started. 
- */ 
+ */
 
 /* 
  * trans - A simple baseline transpose function, not optimized for the cache.
@@ -37,13 +50,93 @@ void trans(int M, int N, int A[N][M], int B[M][N])
 {
     int i, j, tmp;
 
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < M; j++) {
+    for (i = 0; i < N; i++)
+    {
+        for (j = 0; j < M; j++)
+        {
             tmp = A[i][j];
             B[j][i] = tmp;
         }
-    }    
+    }
+}
 
+char trans_32_32_desc[] = "transpose for 32 x 32 matrices";
+void trans_32_32(int A[32][32], int B[32][32])
+{
+    int i, j, ii, jj;
+    int tmp;
+    int bsize = 8;
+
+    for (ii = 0; ii < 32; ii += bsize)
+    {
+        for (jj = 0; jj < 32; jj += bsize)
+        {
+            for (j = jj; j < jj + bsize; j++)
+            {
+                for (i = ii + j - jj; i < ii + bsize; i++)
+                {
+                    tmp = A[i][j];
+                    B[j][i] = tmp;
+                }
+                for (i = ii + j - jj - 1; i >= ii; i--)
+                {
+                    tmp = A[i][j];
+                    B[j][i] = tmp;
+                }
+            }
+        }
+    }
+}
+
+char trans_64_64_desc[] = "transpose for 64 x 64 matrices";
+void trans_64_64(int A[64][64], int B[64][64])
+{
+    int i, j, ii, jj;
+    int tmp;
+    int bsize = 4;
+
+    for (ii = 0; ii < 64; ii += bsize)
+    {
+        for (jj = 0; jj < 64; jj += bsize)
+        {
+            for (j = jj; j < jj + bsize; j++)
+            {
+                for (i = ii + j - jj; i < ii + bsize; i++)
+                {
+                    tmp = A[i][j];
+                    B[j][i] = tmp;
+                }
+                for (i = ii + j - jj - 1; i >= ii; i--)
+                {
+                    tmp = A[i][j];
+                    B[j][i] = tmp;
+                }
+            }
+        }
+    }
+}
+
+char trans_61_67_desc[] = "transpose for 61 x 67 matrices";
+void trans_61_67(int A[67][61], int B[61][67])
+{
+    int i, j, ii, jj;
+    int tmp;
+    int bsize = 8;
+
+    for (ii = 0; ii < 67; ii += bsize)
+    {
+        for (jj = 0; jj < 61; jj += bsize)
+        {
+            for (j = jj; j < 61 && j < jj + bsize; j++)
+            {
+                for (i = ii; i < 67 && i < ii + bsize; i++)
+                {
+                    tmp = A[i][j];
+                    B[j][i] = tmp;
+                }
+            }
+        }
+    }
 }
 
 /*
@@ -56,11 +149,10 @@ void trans(int M, int N, int A[N][M], int B[M][N])
 void registerFunctions()
 {
     /* Register your solution function */
-    registerTransFunction(transpose_submit, transpose_submit_desc); 
+    registerTransFunction(transpose_submit, transpose_submit_desc);
 
     /* Register any additional transpose functions */
-    registerTransFunction(trans, trans_desc); 
-
+    registerTransFunction(trans, trans_desc);
 }
 
 /* 
@@ -72,13 +164,15 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N])
 {
     int i, j;
 
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < M; ++j) {
-            if (A[i][j] != B[j][i]) {
+    for (i = 0; i < N; i++)
+    {
+        for (j = 0; j < M; ++j)
+        {
+            if (A[i][j] != B[j][i])
+            {
                 return 0;
             }
         }
     }
     return 1;
 }
-
