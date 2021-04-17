@@ -388,6 +388,9 @@ void waitfg(pid_t pid)
 {   /* Busy loop for waiting */
     while (fgpid(jobs) == pid)
         Sleep(0);
+    
+    if (verbose)
+        printf("Process (%d) no longer the fg process\n", pid);
 }
 
 /*****************
@@ -403,6 +406,9 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig)
 {
+    if (verbose)
+        Sio_puts("sigchld_handler: entering\n");
+
     int olderrno = errno;
     sigset_t mask_all, prev_all;
     pid_t pid;
@@ -423,9 +429,14 @@ void sigchld_handler(int sig)
         else                    /* The child is terminated */
         {
             deletejob(jobs, pid); /* Delete the child from the job list */
+            if (verbose)
+                printf("sigchld_handler: Job [%d] (%d) deleted\n", jid, pid);
 
             if (WIFSIGNALED(status))
                 printf("Job [%d] (%d) terminated by signal %d\n", jid, pid, WTERMSIG(status));
+            
+            if (verbose && WIFEXITED(status))
+                printf("sigchld_handler: Job [%d] (%d) terminates OK (status %d)\n", jid, pid, WEXITSTATUS(status));
         }
         Sigprocmask(SIG_SETMASK, &prev_all, NULL);
     }
@@ -433,6 +444,9 @@ void sigchld_handler(int sig)
         Sio_error("waitpid error");
 
     errno = olderrno;
+
+    if (verbose)
+        Sio_puts("sigchld_handler: exiting\n");
 }
 
 /* 
@@ -442,17 +456,27 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig)
 {
+    if (verbose)
+        Sio_puts("sigint_handler: entering\n");
+
     int olderrno = errno;
     sigset_t mask_all, prev_all;
     pid_t pid;
 
     Sigfillset(&mask_all);
     Sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+
     pid = fgpid(jobs);
     Kill(-pid, SIGINT); /* terminate foreground jobs */
+    if (verbose)
+        printf("Job (%d) killed\n", pid);
+
     Sigprocmask(SIG_SETMASK, &prev_all, NULL);
 
     errno = olderrno;
+
+    if (verbose)
+        Sio_puts("sigint_handler: exiting\n");
 }
 
 /*
@@ -462,17 +486,27 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig)
 {
+    if (verbose)
+        Sio_puts("sigtstp_handler: entering\n");
+
     int olderrno = errno;
     sigset_t mask_all, prev_all;
     pid_t pid;
 
     Sigfillset(&mask_all);
     Sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+
     pid = fgpid(jobs);
     Kill(-pid, SIGTSTP); /* stop foreground jobs */
+    if (verbose)
+        printf("Job (%d) stopped\n", pid);
+
     Sigprocmask(SIG_SETMASK, &prev_all, NULL);
 
     errno = olderrno;
+
+    if (verbose)
+        Sio_puts("sigtstp_handler: exiting\n");
 }
 
 /*********************
