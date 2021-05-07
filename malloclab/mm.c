@@ -4,7 +4,7 @@
  * Simple, 32-bit and 64-bit clean allocator based on explicit free
  * lists, best-fit placement, and boundary tag coalescing, as described
  * in the CS:APP3e text. Blocks must be aligned to doubleword (8 byte) 
- * boundaries. Minimum block size is 16 bytes. 
+ * boundaries. Minimum block size is 32 bytes. 
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -156,6 +156,7 @@ void *mm_malloc(size_t size)
     /* Search the free list for a fit */
     if ((ptr = find_fit(asize)) != NULL)
     {
+        REMOVE(ptr);
         place(ptr, asize);
         return ptr;
     }
@@ -164,6 +165,7 @@ void *mm_malloc(size_t size)
     extendsize = MAX(asize, CHUNKSIZE);
     if ((ptr = extend_heap(extendsize / WSIZE)) == NULL)
         return NULL;
+    REMOVE(ptr);
     place(ptr, asize);
     return ptr;
 }
@@ -184,11 +186,14 @@ void mm_free(void *ptr)
 }
 
 /*
- * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ * mm_realloc - Implemented in terms of mm_malloc and mm_free
+ *              with optimization for in-place adjustments
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    size_t oldsize;
+    size_t asize;      /* Adjusted block size */
+    size_t oldsize;    /* Original block size */
+    size_t next_size;  /* Next block size */
     void *newptr;
 
     /* If size == 0 then this is just free, and we return NULL. */
@@ -202,6 +207,33 @@ void *mm_realloc(void *ptr, size_t size)
     if (ptr == NULL)
         return mm_malloc(size);
 
+    /* Adjust block size to include overhead and alignment reqs. */
+    if (size <= (3 * DSIZE))
+        asize = 4 * DSIZE;
+    else
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
+
+    /* If size is smaller than current size, then shrink the old block. */
+    oldsize = GET_SIZE(HDRP(ptr));
+    if (asize <= oldsize)
+    {
+        place(ptr, asize);
+        return ptr;
+    }
+
+    /* If oldptr has enough space to extend, then extend the old block. */
+    next_size = GET_SIZE(HDRP(NEXT_BLKP(ptr)));
+    if (asize <= oldsize + next_size && !GET_ALLOC(HDRP(NEXT_BLKP(ptr))))
+    {
+        REMOVE(NEXT_BLKP(ptr));
+        oldsize += next_size;
+        PUT(HDRP(ptr), PACK(oldsize, 1));
+        PUT(FTRP(ptr), PACK(oldsize, 1));
+
+        place(ptr, asize);
+        return ptr;
+    }
+
     newptr = mm_malloc(size);
 
     /* If realloc() fails the original block is left untouched  */
@@ -209,9 +241,6 @@ void *mm_realloc(void *ptr, size_t size)
         return 0;
 
     /* Copy the old data. */
-    oldsize = GET_SIZE(HDRP(ptr));
-    if (size < oldsize)
-        oldsize = size;
     memcpy(newptr, ptr, oldsize);
 
     /* Free the old block. */
@@ -260,7 +289,6 @@ static void *extend_heap(size_t words)
  */
 static void place(void *ptr, size_t asize)
 {
-    REMOVE(ptr);
     size_t csize = GET_SIZE(HDRP(ptr));
 
     if ((csize - asize) >= (4 * DSIZE))
