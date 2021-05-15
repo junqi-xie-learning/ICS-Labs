@@ -1,8 +1,8 @@
 /*
  * mm.c - The fastest, least memory-efficient malloc package.
  * 
- * Simple, 32-bit and 64-bit clean allocator based on explicit free
- * lists, best-fit placement, and boundary tag coalescing, as described
+ * Simple, 32-bit and 64-bit clean allocator based on segregated free
+ * lists, segregated-fits approach, and boundary tag coalescing, as described
  * in the CS:APP3e text. Blocks must be aligned to doubleword (8 byte) 
  * boundaries. Minimum block size is 32 bytes. 
  */
@@ -78,8 +78,11 @@ team_t team = {
 #define PRED_BLKP(ptr) (GETA(PREP(ptr)))
 #define SUCC_BLKP(ptr) (GETA(SUCP(ptr)))
 
+/* Given the class x, compute address of beginning of the list */
+#define CLASS_LIST(x) (heap_listp + ((x) * 3 * DSIZE))
+
 /* Given block ptr, insert or delete it from the list */
-#define INSERT(ptr) \
+#define INSERT(ptr, heap_listp) \
     PUTA(PREP(ptr), heap_listp); \
     PUTA(SUCP(ptr), SUCC_BLKP(heap_listp)); \
     PUTA(PREP(SUCC_BLKP(heap_listp)), ptr); \
@@ -95,6 +98,7 @@ static char *heap_listp = 0; /* Pointer to first block */
 /* Function prototypes for internal helper routines */
 static void *extend_heap(size_t words);
 static void place(void *ptr, size_t asize);
+static int class(size_t x);
 
 static void *find_fit(size_t asize);
 static void *coalesce(void *ptr);
@@ -109,24 +113,25 @@ static void checklist(void *ptr);
 int mm_init(void)
 {
     /* Create the initial empty heap */
-    if ((heap_listp = mem_sbrk(7 * DSIZE)) == (void *)-1)
+    if ((heap_listp = mem_sbrk(40 * DSIZE)) == (void *)-1)
         return -1;
 
     PUT(heap_listp, 0);                          /* Alignment padding */
     heap_listp += DSIZE;                         /* Prologue (Head) */
-    char *tailp = heap_listp + (3 * DSIZE);      /* Tail */
 
-    PUT(HDRP(heap_listp), PACK((3 * DSIZE), 1)); /* Prologue header */
-    PUT(FTRP(heap_listp), PACK((3 * DSIZE), 1)); /* Prologue footer */
-    PUTA(PREP(heap_listp), 0);                   /* Prologue predecessor */
-    PUTA(SUCP(heap_listp), tailp);               /* Prologue successor */
+    size_t i;
+    for (i = 0; i < 13; ++i)
+    {
+        PUT(HDRP(CLASS_LIST(i)), PACK((3 * DSIZE), 1)); /* Prologue header */
+        PUT(FTRP(CLASS_LIST(i)), PACK((3 * DSIZE), 1)); /* Prologue footer */
+        PUTA(PREP(CLASS_LIST(i)), CLASS_LIST(i - 1));   /* Prologue predecessor */
+        PUTA(SUCP(CLASS_LIST(i)), CLASS_LIST(i + 1));   /* Prologue successor */
+    }
 
-    PUT(HDRP(tailp), PACK((3 * DSIZE), 1));      /* Tail header */
-    PUT(FTRP(tailp), PACK((3 * DSIZE), 1));      /* Tail footer */
-    PUTA(PREP(tailp), heap_listp);               /* Tail predecessor */
-    PUTA(SUCP(tailp), 0);                        /* Tail successor */
+    PUTA(PREP(CLASS_LIST(0)), 0);
+    PUTA(SUCP(CLASS_LIST(12)), 0);
 
-    PUT(HDRP(NEXT_BLKP(tailp)), PACK(0, 1));     /* Epilogue header */
+    PUT(HDRP(NEXT_BLKP(CLASS_LIST(12))), PACK(0, 1));   /* Epilogue header */
    
     /* Extend the empty heap with a free block of CHUNKSIZE bytes */
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
@@ -217,7 +222,7 @@ void *mm_realloc(void *ptr, size_t size)
     oldsize = GET_SIZE(HDRP(ptr));
     if (asize <= oldsize)
     {
-        place(ptr, asize);
+        // place(ptr, asize);
         return ptr;
     }
 
@@ -230,7 +235,7 @@ void *mm_realloc(void *ptr, size_t size)
         PUT(HDRP(ptr), PACK(oldsize, 1));
         PUT(FTRP(ptr), PACK(oldsize, 1));
 
-        place(ptr, asize);
+        // place(ptr, asize);
         return ptr;
     }
 
@@ -298,7 +303,7 @@ static void place(void *ptr, size_t asize)
         ptr = NEXT_BLKP(ptr);
         PUT(HDRP(ptr), PACK(csize - asize, 0));
         PUT(FTRP(ptr), PACK(csize - asize, 0));
-        INSERT(ptr);
+        INSERT(ptr, CLASS_LIST(class(GET_SIZE(HDRP(ptr)))));
     }
     else
     {
@@ -308,25 +313,35 @@ static void place(void *ptr, size_t asize)
 }
 
 /* 
+ * class - Determine the class which block ptr belongs to
+ */
+static int class(size_t x)
+{
+    size_t bits = 0;
+    x -= 1;
+
+    while (x)
+    {
+        x >>= 1;
+        ++bits;
+    }
+
+    bits -= 2;
+    return bits > 11 ? 11 : bits;
+}
+
+/* 
  * find_fit - Find a fit for a block with asize bytes 
  */
 static void *find_fit(size_t asize)
 {
-    size_t fsize = __SIZE_MAX__;
-    void *fptr = NULL; /* No fit */
-
     void *ptr;
-
-    for (ptr = heap_listp; SUCC_BLKP(ptr); ptr = SUCC_BLKP(ptr))
+    for (ptr = CLASS_LIST(class(asize)); SUCC_BLKP(ptr); ptr = SUCC_BLKP(ptr))
     {
-        size_t size = GET_SIZE(HDRP(ptr));
-        if (asize <= size && size < fsize)
-        {
-            fptr = ptr;
-            fsize = size;
-        }
+        if (asize <= GET_SIZE(HDRP(ptr)))
+            return ptr;
     }
-    return fptr;
+    return NULL; /* No fit */
 }
 
 /*
@@ -364,7 +379,7 @@ static void *coalesce(void *ptr)
         ptr = PREV_BLKP(ptr);
     }
 
-    INSERT(ptr);
+    INSERT(ptr, CLASS_LIST(class(GET_SIZE(HDRP(ptr)))));
     return ptr;
 }
 
@@ -374,12 +389,15 @@ static void *coalesce(void *ptr)
 void checkheap()
 {
     /* Check implicit free lists */
-    char *ptr = heap_listp;
+    size_t i;
+    for (i = 0; i < 12; ++i)
+    {
+        if ((GET_SIZE(HDRP(CLASS_LIST(i))) != (3 * DSIZE)) || !GET_ALLOC(HDRP(CLASS_LIST(i))))
+            printf("Bad prologue header %d\n", i);
+        checkblock(CLASS_LIST(i));
+    }
 
-    if ((GET_SIZE(HDRP(heap_listp)) != (3 * DSIZE)) || !GET_ALLOC(HDRP(heap_listp)))
-        printf("Bad prologue header\n");
-    checkblock(heap_listp);
-
+    char *ptr;
     for (ptr = heap_listp; GET_SIZE(HDRP(ptr)) > 0; ptr = NEXT_BLKP(ptr))
         checkblock(ptr);
 
