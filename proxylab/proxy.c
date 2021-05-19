@@ -8,8 +8,19 @@
 #include <stdarg.h>
 
 /*
+ * Thread parameters
+ */
+struct conn_info
+{
+    int connfd;
+    struct sockaddr_storage clientaddr; /* Enough space for any address */
+};
+sem_t mutex; /* Mutex for logging */
+
+/*
  * Function prototypes
  */
+void *thread(void *vargp);
 void proxy(int connfd, struct sockaddr_in *sockaddr);
 ssize_t forward_header(rio_t *rio, int fd, ssize_t *size);
 void forward_body(rio_t *rio, int fd, ssize_t *size, ssize_t content_length);
@@ -21,9 +32,10 @@ void format_log_entry(char *logstring, struct sockaddr_in *sockaddr, char *uri, 
  */
 int main(int argc, char **argv)
 {
-    int listenfd, connfd;
+    int listenfd;
     socklen_t clientlen;
-    struct sockaddr_storage clientaddr;
+    struct conn_info *conn;
+    pthread_t tid;
 
     /* Check arguments */
     if (argc != 2)
@@ -33,15 +45,29 @@ int main(int argc, char **argv)
     }
 
     Signal(SIGPIPE, SIG_IGN); /* Ignore SIGPIPE signals */
+    Sem_init(&mutex, 0, 1); /* Initialize mutex */
     listenfd = Open_listenfd(argv[1]);
     while (1)
     {
+        conn = (struct conn_info *)Malloc(sizeof(struct conn_info));
         clientlen = sizeof(struct sockaddr_storage);
-        connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
-        proxy(connfd, (struct sockaddr_in *)&(clientaddr));
-        Close(connfd);
+        conn->connfd = Accept(listenfd, (SA *)&(conn->clientaddr), &clientlen);
+        Pthread_create(&tid, NULL, thread, conn);
     }
     exit(0);
+}
+
+void *thread(void *vargp)
+{
+    struct conn_info *conn = (struct conn_info *)vargp;
+    int connfd = conn->connfd;
+    struct sockaddr_storage clientaddr = conn->clientaddr;
+
+    Pthread_detach(pthread_self());
+    Free(vargp);
+    proxy(connfd, (struct sockaddr_in *)&(clientaddr));
+    Close(connfd);
+    return NULL;
 }
 
 /*
@@ -89,7 +115,9 @@ void proxy(int connfd, struct sockaddr_in *sockaddr)
 
     /* Output Log */
     format_log_entry(buf, sockaddr, uri, size);
+    P(&mutex);
     printf("%s\n", buf);
+    V(&mutex);
 
     Close(clientfd);
 }
