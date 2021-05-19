@@ -1,34 +1,129 @@
 /*
  * proxy.c - ICS Web proxy
  *
- *
+ * Junqi Xie @junqi-xie
  */
 
 #include "csapp.h"
 #include <stdarg.h>
-#include <sys/select.h>
 
 /*
  * Function prototypes
  */
+void proxy(int connfd, struct sockaddr_in *sockaddr);
+ssize_t forward_header(rio_t *rio, int fd, ssize_t *size);
+void forward_body(rio_t *rio, int fd, ssize_t *size, ssize_t content_length);
 int parse_uri(char *uri, char *target_addr, char *path, char *port);
 void format_log_entry(char *logstring, struct sockaddr_in *sockaddr, char *uri, size_t size);
-
 
 /*
  * main - Main routine for the proxy program
  */
 int main(int argc, char **argv)
 {
+    int listenfd, connfd;
+    socklen_t clientlen;
+    struct sockaddr_storage clientaddr;
+
     /* Check arguments */
-    if (argc != 2) {
+    if (argc != 2)
+    {
         fprintf(stderr, "Usage: %s <port number>\n", argv[0]);
         exit(0);
     }
 
+    Signal(SIGPIPE, SIG_IGN); /* Ignore SIGPIPE signals */
+    listenfd = Open_listenfd(argv[1]);
+    while (1)
+    {
+        clientlen = sizeof(struct sockaddr_storage);
+        connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
+        proxy(connfd, (struct sockaddr_in *)&(clientaddr));
+        Close(connfd);
+    }
     exit(0);
 }
 
+/*
+ * proxy - read and proxy web contents until client closes connection
+ */
+void proxy(int connfd, struct sockaddr_in *sockaddr)
+{
+    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
+    char hostname[MAXLINE], pathname[MAXLINE], port[MAXLINE];
+    int clientfd;
+    ssize_t content_length, size;
+    rio_t connrio, clientrio;
+
+    Rio_readinitb(&connrio, connfd);
+    if (!Rio_readlineb_w(&connrio, buf, MAXLINE))
+        return;
+
+    /* Read Request Line */
+    if (sscanf(buf, "%s %s %s", method, uri, version) != 3 || strcasecmp(version, "HTTP/1.1"))
+    {
+        fprintf(stderr, "Illegal request line\n");
+        return;
+    }
+    if (parse_uri(uri, hostname, pathname, port))
+    {
+        fprintf(stderr, "Illegal URL\n");
+        return;
+    }
+    sprintf(buf, "%s /%s %s\r\n", method, pathname, version);
+    
+    clientfd = Open_clientfd(hostname, port);
+    Rio_readinitb(&clientrio, clientfd);
+    Rio_writen_w(clientfd, buf, strlen(buf));
+
+    /* Forward from client to server */
+    size = 0;
+    content_length = forward_header(&connrio, clientfd, &size);
+    if (strcasecmp(method, "GET"))
+        forward_body(&connrio, clientfd, &size, content_length);
+
+    /* Forward from server to client */
+    size = 0;
+    content_length = forward_header(&clientrio, connfd, &size);
+    forward_body(&clientrio, connfd, &size, content_length);
+
+    /* Output Log */
+    format_log_entry(buf, sockaddr, uri, size);
+    printf("%s\n", buf);
+
+    Close(clientfd);
+}
+
+ssize_t forward_header(rio_t *rio, int fd, ssize_t *size)
+{
+    ssize_t content_length;
+    char buf[MAXLINE];
+
+    *size += Rio_readlineb_w(rio, buf, MAXLINE);
+    Rio_writen_w(fd, buf, strlen(buf));
+    while (strcmp(buf, "\r\n"))
+    {
+        *size += Rio_readlineb_w(rio, buf, MAXLINE);
+        if (!strncmp(buf, "Content-Length: ", 16))
+            sscanf(buf, "Content-Length: %zd", &content_length);
+        Rio_writen_w(fd, buf, strlen(buf));
+    }
+
+    return content_length;
+}
+
+void forward_body(rio_t *rio, int fd, ssize_t *size, ssize_t content_length)
+{
+    char buf[MAXLINE];
+
+    while (content_length > 0)
+    {
+        Rio_readnb_w(rio, buf, 1);
+        ++*size;
+        --content_length;
+        Rio_writen_w(fd, buf, 1);
+    }
+}
 
 /*
  * parse_uri - URI parser
@@ -45,7 +140,8 @@ int parse_uri(char *uri, char *hostname, char *pathname, char *port)
     char *pathbegin;
     int len;
 
-    if (strncasecmp(uri, "http://", 7) != 0) {
+    if (strncasecmp(uri, "http://", 7) != 0)
+    {
         hostname[0] = '\0';
         return -1;
     }
@@ -60,21 +156,26 @@ int parse_uri(char *uri, char *hostname, char *pathname, char *port)
     hostname[len] = '\0';
 
     /* Extract the port number */
-    if (*hostend == ':') {
+    if (*hostend == ':')
+    {
         char *p = hostend + 1;
         while (isdigit(*p))
             *port++ = *p++;
         *port = '\0';
-    } else {
+    }
+    else
+    {
         strcpy(port, "80");
     }
 
     /* Extract the path */
     pathbegin = strchr(hostbegin, '/');
-    if (pathbegin == NULL) {
+    if (pathbegin == NULL)
+    {
         pathname[0] = '\0';
     }
-    else {
+    else
+    {
         pathbegin++;
         strcpy(pathname, pathbegin);
     }
