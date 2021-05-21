@@ -1,0 +1,16 @@
+****************
+ICS Proxy Lab
+****************
+
+Makefile	- For building and handing in proxy
+README		- This file
+
+# Proxy source files
+proxy.{c,h}	- Primary proxy code
+csapp.{c,h}	- Wrapper and helper functions from the CS:APP text
+proxy-ref	- The reference proxy binary
+
+# Grading scripts
+grade.py	- Autograding script
+client		- Example client for grading
+server		- Example server for grading
