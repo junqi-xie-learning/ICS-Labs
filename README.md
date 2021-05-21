@@ -13,7 +13,7 @@ If you found any mistakes in the solutions, please create an issue or contact me
 ### Labs from SE2317 (Spring 2021)
 
 * [x] Shell Lab
-* [ ] Proxy Lab
+* [x] Proxy Lab
 
 ### Sample Labs from CS:APP
 
