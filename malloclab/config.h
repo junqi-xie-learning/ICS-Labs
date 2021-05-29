@@ -12,7 +12,7 @@
  * This is the default path where the driver will look for the
  * default tracefiles. You can override it at runtime with the -t flag.
  */
-#define TRACEDIR "/afs/cs/project/ics2/im/labs/malloclab/traces/"
+#define TRACEDIR "./traces/"
 
 /*
  * This is the list of default tracefiles in TRACEDIR that the driver
@@ -43,7 +43,7 @@
  * to their score.  This deters students from building extremely fast,
  * but extremely stupid malloc packages.
  */
-#define AVG_LIBC_THRUPUT      600E3  /* 600 Kops/sec */
+#define AVG_LIBC_THRUPUT      12E6  /* 12632 Kops/sec */
 
  /* 
   * This constant determines the contributions of space utilization
