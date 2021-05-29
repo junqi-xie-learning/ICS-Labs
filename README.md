@@ -1,6 +1,6 @@
 # ICS-Labs
 
-This repository contains the lab assignments from SE2317 (2021 Spring) and selected sample labs from [CS:APP Student Site](http://csapp.cs.cmu.edu/3e/labs.html) (from [CMU 15-213](http://www.cs.cmu.edu/afs/cs/academic/class/15213-f15/www/index.html)) with my solutions. I included the problems as a reference, but I do not claim the copyright of these problems.
+This repository contains the lab assignments from [SE2317 (2021 Spring)](https://ipads.se.sjtu.edu.cn/courses/ics/) and selected sample labs from [CS:APP Student Site](http://csapp.cs.cmu.edu/3e/labs.html) (from [CMU 15-213](http://www.cs.cmu.edu/afs/cs/academic/class/15213-f15/www/index.html)) with my solutions. I included the problems as a reference, but I do not claim the copyright of these problems.
 
 If you found any mistakes in the solutions, please create an issue or contact me through email.
 
@@ -8,21 +8,21 @@ If you found any mistakes in the solutions, please create an issue or contact me
 
 * This repository was tested with GCC 8.3.0 on Debian GNU/Linux 10.
 
-## Current Progress
+## Contents
 
-### Labs from SE2317 (Spring 2021)
+### Labs from SE2317 (2021 Spring)
 
-* [x] Shell Lab
-* [x] Proxy Lab
+* Shell Lab
+* Proxy Lab
 
 ### Sample Labs from CS:APP
 
-* [x] Data Lab
-* [x] Bomb Lab
-* [x] Attack Lab
-* [x] Architecture Lab
-* [x] Cache Lab
-* [ ] Malloc Lab
+* Data Lab
+* Bomb Lab
+* Attack Lab
+* Architecture Lab
+* Cache Lab
+* Malloc Lab
 
 ## License
 
