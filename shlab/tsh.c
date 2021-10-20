@@ -466,8 +466,8 @@ void sigint_handler(int sig)
     Sigfillset(&mask_all);
     Sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
 
-    pid = fgpid(jobs);
-    Kill(-pid, SIGINT); /* terminate foreground jobs */
+    if ((pid = fgpid(jobs)) != 0)
+        Kill(-pid, SIGINT); /* terminate foreground jobs */
     if (verbose)
         printf("Job (%d) killed\n", pid);
 
@@ -496,8 +496,8 @@ void sigtstp_handler(int sig)
     Sigfillset(&mask_all);
     Sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
 
-    pid = fgpid(jobs);
-    Kill(-pid, SIGTSTP); /* stop foreground jobs */
+    if ((pid = fgpid(jobs)) != 0)
+        Kill(-pid, SIGTSTP); /* stop foreground jobs */
     if (verbose)
         printf("Job (%d) stopped\n", pid);
 
